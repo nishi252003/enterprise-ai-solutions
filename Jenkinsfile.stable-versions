@@ -1,0 +1,84 @@
+pipeline {
+    agent { label 'docker' }
+
+    options {
+        disableConcurrentBuilds()
+        timeout(time: 90, unit: 'MINUTES')
+        timestamps()
+    }
+
+    parameters {
+        string(
+            name: 'REPOSITORIES',
+            defaultValue: 'intel/enterprise-ai-solutions,intel/enterprise-inference,intel/enterprise-agent-toolkit',
+            description: 'Comma-separated GitHub repositories with bot access'
+        )
+        booleanParam(
+            name: 'CREATE_PRS',
+            defaultValue: false,
+            description: 'Create or update pull requests after discovery'
+        )
+    }
+
+    environment {
+        RENOVATE_IMAGE = 'renovate/renovate:44.257.9'
+        RENOVATE_PLATFORM = 'github'
+        RENOVATE_CONFIG_FILE = '/config/renovate-config.json'
+        LOG_FORMAT = 'json'
+        LOG_LEVEL = 'info'
+    }
+
+    stages {
+        stage('Identify stable versions') {
+            steps {
+                script {
+                    if (!(params.REPOSITORIES ==~ /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(,[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)*/)) {
+                        error('REPOSITORIES must be a comma-separated list of GitHub owner/repository names without spaces.')
+                    }
+                }
+                withCredentials([string(credentialsId: 'renovate-github-token', variable: 'RENOVATE_TOKEN')]) {
+                    withEnv(["RENOVATE_REPOSITORIES=${params.REPOSITORIES}", 'RENOVATE_DRY_RUN=full']) {
+                        sh '''#!/usr/bin/env bash
+                            set -euo pipefail
+                            set +x
+                            docker run --rm \
+                              -v "$WORKSPACE/ci/renovate-config.json:/config/renovate-config.json:ro" \
+                              -e RENOVATE_TOKEN -e RENOVATE_REPOSITORIES -e RENOVATE_PLATFORM \
+                              -e RENOVATE_CONFIG_FILE -e RENOVATE_DRY_RUN -e LOG_FORMAT -e LOG_LEVEL \
+                              -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
+                              "$RENOVATE_IMAGE" | tee stable-discovery.jsonl
+                            bash ci/check-renovate-report.sh stable-discovery.jsonl
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Create change and pull requests') {
+            when { expression { params.CREATE_PRS } }
+            steps {
+                withCredentials([string(credentialsId: 'renovate-github-token', variable: 'RENOVATE_TOKEN')]) {
+                    withEnv(["RENOVATE_REPOSITORIES=${params.REPOSITORIES}"]) {
+                        sh '''#!/usr/bin/env bash
+                            set -euo pipefail
+                            set +x
+                            docker run --rm \
+                              -v "$WORKSPACE/ci/renovate-config.json:/config/renovate-config.json:ro" \
+                              -e RENOVATE_TOKEN -e RENOVATE_REPOSITORIES -e RENOVATE_PLATFORM \
+                              -e RENOVATE_CONFIG_FILE -e LOG_FORMAT -e LOG_LEVEL \
+                              -e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY \
+                              "$RENOVATE_IMAGE" | tee stable-pull-requests.jsonl
+                            bash ci/check-renovate-report.sh stable-pull-requests.jsonl
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'stable-*.jsonl', allowEmptyArchive: true
+        }
+    }
+}

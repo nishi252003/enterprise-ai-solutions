@@ -1,0 +1,49 @@
+{
+  "platform": "github",
+  "autodiscover": false,
+  "onboarding": false,
+  "requireConfig": "optional",
+  "exitCodeForErrors": true,
+  "reportType": "logging",
+  "allowScripts": false,
+  "allowPlugins": false,
+  "enabledManagers": [
+    "helmv3",
+    "helm-values",
+    "dockerfile",
+    "docker-compose",
+    "pip_requirements",
+    "custom.regex"
+  ],
+  "force": {
+    "automerge": false,
+    "ignoreUnstable": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)config\\.yaml$/",
+        "/(^|/)roles/agent_sandbox/defaults/main\\.yaml$/"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)agent_sandbox_version:[ \\t]*[\"']?(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "packageNameTemplate": "kubernetes-sigs/agent-sandbox",
+      "versioningTemplate": "semver-coerced"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)charts/redis-stack/charts/redis-stack-server/values\\.yaml$/"
+      ],
+      "matchStrings": [
+        "image:[ \\t]*[\"']?redis/redis-stack-server[\"']?[ \\t]*\\r?\\n[ \\t]*tag:[ \\t]*[\"'](?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+-v[0-9]+)[\"']"
+      ],
+      "datasourceTemplate": "docker",
+      "packageNameTemplate": "redis/redis-stack-server",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-v(?<build>\\d+)$"
+    }
+  ]
+}
