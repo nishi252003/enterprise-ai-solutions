@@ -11,5 +11,5 @@ dependencies:
     repository: "https://seaweedfs.github.io/seaweedfs/helm"
     condition: seaweedfs.enabled
   - name: velero
-    version: "12.1.0"
+    version: "12.2.5"
     repository: "https://vmware-tanzu.github.io/helm-charts/"
