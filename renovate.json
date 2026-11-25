@@ -1,6 +1,37 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "forkProcessing": "enabled",
-  "extends": ["config:recommended"],
-  "automerge": false
+  "extends": [
+    "config:recommended"
+  ],
+  "automerge": false,
+  "ignoreUnstable": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)roles/metallb/defaults/main\\.yaml$/"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)metallb_version:[ \\t]*[\"']?(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)[\"']?"
+      ],
+      "datasourceTemplate": "helm",
+      "packageNameTemplate": "metallb",
+      "registryUrlTemplate": "https://metallb.github.io/metallb",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)roles/postgresql/defaults/main\\.yaml$/"
+      ],
+      "matchStrings": [
+        "(?:^|\\n)cnpg_version:[ \\t]*[\"']?(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)[\"']?"
+      ],
+      "datasourceTemplate": "helm",
+      "packageNameTemplate": "cloudnative-pg",
+      "registryUrlTemplate": "https://cloudnative-pg.github.io/charts",
+      "versioningTemplate": "semver"
+    }
+  ]
 }
